@@ -20,44 +20,21 @@
 # definition file).
 #
 
-# WARNING: This line must come *before* including the proprietary
-# variant, so that it gets overwritten by the parent (which goes
-# against the traditional rules of inheritance).
-USE_CAMERA_STUB := true
+# inherit from common msm8960
+-include device/samsung/msm8960-common/BoardConfigCommon.mk
 
 TARGET_SPECIFIC_HEADER_PATH := device/samsung/gogh-common/include
 
-BOARD_VENDOR := samsung
-
-# inherit from common msm8960
-TARGET_BOARD_PLATFORM := msm8960
-TARGET_BOARD_PLATFORM_GPU := qcom-adreno200
-
-# inherit from qcom-common
--include device/samsung/qcom-common/BoardConfigCommon.mk
-
 # Kernel
+TARGET_KERNEL_SOURCE        := kernel/samsung/d2
 BOARD_KERNEL_CMDLINE        := androidboot.hardware=qcom user_debug=31 zcache
 BOARD_KERNEL_BASE           := 0x80200000
-BOARD_FORCE_RAMDISK_ADDRESS := 0x81500000
+BOARD_MKBOOTIMG_ARGS := --ramdisk_offset 0x01300000
 BOARD_KERNEL_PAGESIZE       := 2048
+#TARGET_KERNEL_VARIANT_CONFIG := cyanogen_d2_defconfig
+#TARGET_KERNEL_SELINUX_CONFIG := m2selinux_defconfig
 
-# Architecture
-TARGET_CPU_SMP := true
 TARGET_BOOTLOADER_BOARD_NAME := MSM8960
-
-# Compatibilty with ICS drivers
-COMMON_GLOBAL_CFLAGS += -DICS_CAMERA_BLOB 
-BOARD_LEGACY_NL80211_STA_EVENTS := true
-COMMON_GLOBAL_CFLAGS += -D__ARM_USE_PLD -D__ARM_CACHE_LINE_SIZE=64
-
-# Krait optimizations
-TARGET_USE_KRAIT_BIONIC_OPTIMIZATION := true
-TARGET_USE_KRAIT_PLD_SET := true
-TARGET_KRAIT_BIONIC_PLDOFFS := 10
-TARGET_KRAIT_BIONIC_PLDTHRESH := 10
-TARGET_KRAIT_BIONIC_BBTHRESH := 64
-TARGET_KRAIT_BIONIC_PLDSIZE := 64
 
 # Recovery
 BOARD_CUSTOM_RECOVERY_KEYMAPPING := ../../device/samsung/gogh-common/recovery/recovery_keys.c
@@ -66,7 +43,7 @@ BOARD_USES_MMCUTILS := true
 BOARD_HAS_LARGE_FILESYSTEM := true
 BOARD_HAS_NO_MISC_PARTITION := true
 BOARD_HAS_NO_SELECT_BUTTON := true
-TARGET_RECOVERY_FSTAB := device/samsung/gogh-common/recovery.fstab
+TARGET_RECOVERY_FSTAB := device/samsung/gogh-common/rootdir/etc/fstab.qcom
 
 TARGET_USERIMAGES_USE_EXT4 := true
 BOARD_BOOTIMAGE_PARTITION_SIZE := 0x00A00000
@@ -75,30 +52,9 @@ BOARD_SYSTEMIMAGE_PARTITION_SIZE := 1572864000
 BOARD_USERDATAIMAGE_PARTITION_SIZE := 28651290624
 BOARD_FLASH_BLOCK_SIZE := 131072
 
-# Bluetooth
-BOARD_HAVE_BLUETOOTH := true
-BOARD_HAVE_BLUETOOTH_QCOM := true
-BLUETOOTH_HCI_USE_MCT := true
+# bluetooth
 BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := device/samsung/gogh-common/bluetooth
-
-# Wifi
-BOARD_HAS_QCOM_WLAN := true
-BOARD_WLAN_DEVICE := qcwcn
-BOARD_SOFTAP_DEVICE := qcwcn 
-WPA_SUPPLICANT_VERSION := VER_0_8_X
-BOARD_WPA_SUPPLICANT_DRIVER := NL80211
-BOARD_WPA_SUPPLICANT_PRIVATE_LIB := lib_driver_cmd_$(BOARD_WLAN_DEVICE)
-WIFI_DRIVER_MODULE_NAME :=  wlan
-WIFI_DRIVER_MODULE_PATH :=  "/system/lib/modules/wlan.ko"
-BOARD_HOSTAPD_DRIVER := NL80211
-BOARD_HOSTAPD_PRIVATE_LIB := lib_driver_cmd_$(BOARD_WLAN_DEVICE)
-
-# NFC
-BOARD_HAVE_NFC := true
-
-# QCOM hardware
-BOARD_USES_QCOM_GPS := true
-BOARD_VENDOR_QCOM_GPS_LOC_API_AMSS_VERSION := 50000
+BOARD_BLUEDROID_VENDOR_CONF := device/samsung/gogh-common/bluetooth/vnd_d2.txt
 
 # Disable initlogo, Samsungs framebuffer is weird
 TARGET_NO_INITLOGO := true
@@ -106,20 +62,45 @@ TARGET_NO_INITLOGO := true
 # Use Audience A2220 chip
 BOARD_HAVE_AUDIENCE_A2220 := true
 
-# Vold
-BOARD_VOLD_EMMC_SHARES_DEV_MAJOR := true
-BOARD_VOLD_MAX_PARTITIONS := 28
-TARGET_USE_CUSTOM_LUN_FILE_PATH := /sys/devices/platform/msm_hsusb/gadget/lun%d/file
+# Use USB Dock Audio
+BOARD_HAVE_DOCK_USBAUDIO := true
 
-# PMEM compatibility
-BOARD_NEEDS_MEMORYHEAPPMEM := true
+#camera abi compatiblily
+TARGET_DISPLAY_INSECURE_MM_HEAP := true
+COMMON_GLOBAL_CFLAGS += -DQCOM_BSP_CAMERA_ABI_HACK
 
-# ICS proprietary blob compatibility
-COMMON_GLOBAL_CFLAGS += -DICS_CAMERA_BLOB
+# Separate audio devices for VOIP
+BOARD_USES_SEPERATED_VOIP := true
 
-# Workaround to avoid issues with legacy liblights on QCOM platforms
-TARGET_PROVIDES_LIBLIGHTS := true
+# SELinux
+BOARD_SEPOLICY_DIRS += \
+        device/samsung/gogh-common/sepolicy
 
-# Audio
-BOARD_USES_ALSA_AUDIO := true
-BOARD_HAVE_SAMSUNG_AUDIO := true
+BOARD_SEPOLICY_UNION += \
+        file_contexts \
+        property_contexts \
+        te_macros \
+        bridge.te \
+        camera.te \
+        conn_init.te \
+        device.te \
+        dhcp.te \
+        domain.te \
+        drmserver.te \
+        file.te \
+        kickstart.te \
+        init.te \
+        mediaserver.te \
+        mpdecision.te \
+        netmgrd.te \
+        property.te \
+        qmux.te \
+        rild.te \
+        rmt.te \
+        sensors.te \
+        surfaceflinger.te \
+        system.te \
+        tee.te \
+        thermald.te \
+        ueventd.te \
+        wpa_supplicant.te

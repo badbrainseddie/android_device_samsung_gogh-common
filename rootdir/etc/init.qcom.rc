@@ -26,32 +26,42 @@
 #
 
 import init.qcom.usb.rc
-import init.bt.rc
 
 on init
     # Set permissions for persist partition
     mkdir /persist 0771 system system
 
+    mkdir /mnt/shell/emulated 0700 shell shell
+    mkdir /storage 0550 system sdcard_r
+    mkdir /storage/emulated 0555 root root
+
+    #External storage directories
+    mkdir /storage/sdcard1 0000 system system
+    mkdir /storage/usbdisk0 0000 system system
+
+    export EXTERNAL_STORAGE /storage/emulated/legacy
+    export SECONDARY_STORAGE /storage/sdcard1:/storage/usbdisk0
+    export EMULATED_STORAGE_SOURCE /mnt/shell/emulated
+    export EMULATED_STORAGE_TARGET /storage/emulated
+
+    # for backwards compatibility
+    symlink /storage/emulated/legacy /sdcard
+    symlink /storage/emulated/legacy /mnt/sdcard
+    symlink /storage/emulated/legacy /storage/sdcard0
+    symlink /mnt/shell/emulated/0 /storage/emulated/legacy
+    symlink /storage/sdcard1 /extSdCard
+    symlink /storage/sdcard1 /mnt/extSdCard
+    symlink /storage/sdcard1 /external_sd
+    symlink /storage/usbdisk0 /usbdisk0
+    symlink /storage/usbdisk0 /mnt/usbdisk0
+
 on early-boot
     # set RLIMIT_MEMLOCK to 64MB
     setrlimit 8 67108864 67108864
+    setprop qcom.audio.init complete
+    setprop qcom.thermal thermal-engine
     exec /system/bin/sh /init.qcom.early_boot.sh ${ro.board.platform}
     exec /system/bin/sh /init.qcom.syspart_fixup.sh ${ro.board.platform} ${ro.serialno}
-
-on early-init
-    mkdir /storage 0050 system sdcard_r
-    mkdir /storage/sdcard0 0000 system system
-    mkdir /storage/sdcard1 0000 system system
-
-    symlink /storage/sdcard0 /sdcard
-    symlink /storage/sdcard0 /mnt/sdcard
-    symlink /storage/sdcard1 /external_sd
-    symlink /storage/sdcard1 /mnt/external_sd
-
-    mkdir /mnt/usbdisk 0755 system system
-
-    export EXTERNAL_STORAGE /storage/sdcard0
-    export SECONDARY_STORAGE /storage/sdcard1
 
 on boot-pause
     exec system/bin/battery_charging
@@ -76,19 +86,27 @@ on boot
     chown bluetooth bluetooth /sys/devices/platform/msm_serial_hs.0/clock
     chmod 0660 /sys/devices/platform/msm_serial_hs.0/clock
 
-    chmod 0660 /dev/ttyHS2
-    chown bluetooth bluetooth /dev/ttyHS2
+    # bluetooth LPM
+    chmod 0220 /proc/bluetooth/sleep/lpm
+    chmod 0220 /proc/bluetooth/sleep/btwrite
+    chown bluetooth net_bt_stack /proc/bluetooth/sleep/lpm
+    chown bluetooth net_bt_stack /proc/bluetooth/sleep/btwrite
 
     #Create QMUX deamon socket area
-    mkdir /dev/socket/radio 0770 radio radio
-    chmod 2770 /dev/socket/radio
-    mkdir /dev/socket/audio 0770 media audio
-    chmod 2770 /dev/socket/audio
-    mkdir /dev/socket/blueooth 0770 bluetooth bluetooth
-    chmod 2770 /dev/socket/bluetooth
+    mkdir /dev/socket/qmux_radio 0770 radio radio
+    chmod 2770 /dev/socket/qmux_radio
+    mkdir /dev/socket/qmux_audio 0770 media audio
+    chmod 2770 /dev/socket/qmux_audio
+    mkdir /dev/socket/qmux_bluetooth 0770 bluetooth bluetooth
+    chmod 2770 /dev/socket/qmux_bluetooth
+    mkdir /dev/socket/qmux_gps 0770 gps gps
+    chmod 2770 /dev/socket/qmux_gps
 
     # Allow QMUX daemon to assign port open wait time
     chown radio radio /sys/devices/virtual/hsicctl/hsicctl0/modem_wait
+
+    # 4.3 requires this
+    chmod 0644 /proc/cmdline
 
     setprop wifi.interface wlan0
 
@@ -158,9 +176,18 @@ on boot
     # an ack packet comes out of order
     write /proc/sys/net/netfilter/nf_conntrack_tcp_be_liberal 1
 
+    # Flash storage isn't a good entropy source, and only causes locking
+    # overhead in the kernel. Turn it off.
+    write /sys/block/mmcblk0/queue/add_random 0
+
 # import cne init file
 on post-fs
-    export_rc /persist/init.cne.rc
+    #export_rc /persist/init.cne.rc
+    # Increase max readahead size to 256 KB
+    write /sys/block/mmcblk0/queue/read_ahead_kb 256
+    # for controlling write performance boosting
+    chown system radio /sys/block/mmcblk0/bkops_en
+    chmod 0664 /sys/block/mmcblk0/bkops_en
 
 # msm specific files that need to be created on /data
 on post-fs-data
@@ -201,6 +228,12 @@ on post-fs-data
     # For disabling softkeys *FIXME*
     chown root system /sys/class/leds/button-backlight/max_brightness
     chmod 0664 /sys/class/leds/button-backlight/max_brightness
+    chown root system /sys/class/leds/keyboard-backlight/max_brightness
+    chmod 0664 /sys/class/leds/keyboard-backlight/max_brightness
+
+    # for BLN
+    chown root system /sys/devices/virtual/sec/sec_touchkey/touchkey_bln_enable
+    chmod 0666 /sys/devices/virtual/sec/sec_touchkey/touchkey_bln_enable
 
     #Create the symlink to qcn wpa_supplicant folder for ar6000 wpa_supplicant
     mkdir /data/system 0775 system system
@@ -239,6 +272,10 @@ on post-fs-data
     # Enable the setgid bit on the directory
     chmod 2770 /data/bluetooth
 
+    mkdir /data/audio/ 0770 media audio
+    # Enable the setgid bit on the directory
+    chmod 2770 /data/audio
+
     setprop vold.post_fs_data_done 1
 
 # Export GPIO56 for fusion targets to enable/disable hub
@@ -247,6 +284,10 @@ service usbhub_init /system/bin/usbhub_init
    user root
    disabled
    oneshot
+
+on property:init.svc.surfaceflinger=stopped
+    stop ppd
+    stop hdmid
 
 on property:ro.board.platform=msm7630_fusion
     start usbhub_init
@@ -284,52 +325,8 @@ service rmt_storage /system/bin/rmt_storage
     user root
     disabled
 
-on property:ro.emmc=1
+on property:ro.boot.emmc=true
     start rmt_storage
-
-#service bt-dun /system/bin/dun-server /dev/smd7 /dev/rfcomm0
-#    class late_start
-#    disabled
-#    oneshot
-
-#service bt-sap /system/bin/sapd 15
-#    class late_start
-#    disabled
-#    oneshot
-
-#service sapd /system/bin/sdptool add --channel=15 SAP
-#    class late_start
-#    user bluetooth
-#    group bluetooth net_bt_admin
-#    disabled
-#    oneshot
-
-#service dund /system/bin/sdptool add --channel=1 DUN
-#    class late_start
-#    user bluetooth
-#    group bluetooth net_bt_admin
-#    disabled
-#    oneshot
-
-#HCI_ENABLE_BT_DEV_UNDER_TEST_MODE ; thun.lim
-#service bt_dut_cmd /system/bin/bt_dut
-#    group bluetooth net_bt_admin
-#    class main
-#    disabled
-#    oneshot
-
-#BLUETOOTH_AUDIO_LOOPBACK_TEST_MODE
-#service bt_audio_dut_cmd /system/bin/bt_audio_dut
-#    group bluetooth net_bt_admin
-#    class main
-#    disabled
-
-service hciattach_ath3k /system/bin/sh /system/etc/init.ath3k.bt.sh
-     class late_start
-     user bluetooth
-     group system bluetooth net_bt_admin misc
-     disabled
-     oneshot
 
 service bridgemgrd /system/bin/bridgemgrd
     class late_start
@@ -357,19 +354,19 @@ service qmiproxy /system/bin/qmiproxy
 #For EncryptionMode - remove disabled, Modify class main
 service qmuxd /system/bin/qmuxd
     class main
-    user root
-    group radio log audio bluetooth qcom_diag
+    user radio
+    group radio audio bluetooth gps qcom_diag log
     disabled
 
 service netmgrd /system/bin/netmgrd
     class main
     disabled
 
-service sensors /system/bin/sensors.qcom
-    class late_start
-    user root
-    group root
-    disabled
+#service sensors /system/bin/sensors.qcom
+#    class late_start
+#    user root
+#    group root
+#    disabled
 
 on property:ro.use_data_netmgrd=false
 #netmgr not supported on specific target
@@ -379,12 +376,6 @@ on property:ro.use_data_netmgrd=false
 # but only if ro.data.large_tcp_window_size property is set.
 on property:ro.data.large_tcp_window_size=true
     write /proc/sys/net/ipv4/tcp_adv_win_scale  1
-
-on property:bluetooth.hciattach=true
-    setprop bluetooth.status on
-
-on property:bluetooth.hciattach=false
-    setprop bluetooth.status off
 
 service btwlancoex /system/bin/sh /system/etc/init.qcom.coex.sh
     class late_start
@@ -408,7 +399,7 @@ service wpa_supplicant /system/bin/wpa_supplicant \
     #   user wifi
     #   group wifi inet keystore
     class main
-    socket wpa_wlan0 dgram 660 wifi wifi
+    socket wpa_wlan0 dgram 660 wifi wifi u:object_r:wpa_socket:s0
     disabled
     oneshot
 # New supplicant service config to support both BCM4334 / WCN3660
@@ -420,11 +411,11 @@ service p2p_supplicant /system/bin/wpa_supplicant \
     #   user wifi
     #   group wifi inet keystore
     class main
-    socket wpa_wlan0 dgram 660 wifi wifi
+    socket wpa_wlan0 dgram 660 wifi wifi u:object_r:wpa_socket:s0
     disabled
     oneshot
 
-service dhcpcd_wlan0 /system/bin/dhcpcd -aABKL
+service dhcpcd_wlan0 /system/bin/dhcpcd -aABDKL
     class main
     disabled
     oneshot
@@ -439,7 +430,7 @@ service dhcpcd_bnep0 /system/bin/dhcpcd -ABKL
     disabled
     oneshot
 
-service dhcpcd_eth0 /system/bin/dhcpcd -ABKL
+service dhcpcd_eth0 /system/bin/dhcpcd -ABDKL
     class main
     disabled
     oneshot
@@ -471,17 +462,17 @@ service gpsone_daemon /system/bin/gpsone_daemon
     group system qcom_oncrpc inet
     disabled
 
-service quipc_igsn /system/bin/quipc_igsn
-    class late_start
-    user gps
-    group inet gps
-    disabled
+#service quipc_igsn /system/bin/quipc_igsn
+#    class late_start
+#    user gps
+#    group inet gps
+#    disabled
 
-service quipc_main /system/bin/quipc_main
-    class late_start
-    user gps
-    group net_admin wifi inet gps
-    disabled
+#service quipc_main /system/bin/quipc_main
+#    class late_start
+#    user gps
+#    group net_admin wifi inet gps
+#    disabled
 
 service fm_dl /system/bin/sh /system/etc/init.qcom.fm.sh
     class late_start
@@ -521,7 +512,7 @@ service qcom-post-boot /system/bin/sh /system/etc/init.qcom.post_boot.sh
     disabled
     oneshot
 
-service wifisdio-on /system/bin/sh /system/etc/init.qcom.sdio.sh
+service wifi-sdio-on /system/bin/sh /system/etc/init.qcom.sdio.sh
     class late_start
     group wifi inet
     disabled
@@ -530,11 +521,11 @@ service wifisdio-on /system/bin/sh /system/etc/init.qcom.sdio.sh
 on property:sys.boot_completed=1
     start qcom-post-boot
 
-service atfwd /system/bin/ATFWD-daemon
-    class late_start
-    user system
-    group system radio
-    onrestart /system/bin/log -t RIL-ATFWD -p w "ATFWD daemon restarted"
+#service atfwd /system/bin/ATFWD-daemon
+#    class late_start
+#    user system
+#    group system radio
+#    onrestart /system/bin/log -t RIL-ATFWD -p w "ATFWD daemon restarted"
 
 service hdmid /system/bin/hdmid
     class late_start
@@ -581,44 +572,29 @@ on property:persist.ims.regmanager.mode=1
 on property:ro.data.large_tcp_window_size=true
     # Adjust socket buffer to enlarge TCP receive window for high bandwidth (e.g. DO-RevB)
     write /proc/sys/net/ipv4/tcp_adv_win_scale  1
+on property:bluetooth.hciattach=true
+    setprop bluetooth.status on
 
-service time_daemon /system/bin/time_daemon
-    class late_start
-    user root
-    group root
-    oneshot
-    disabled
+on property:bluetooth.hciattach=false
+    setprop bluetooth.status off
 
-on property:persist.timed.enable=true
-    start time_daemon
-
-#service ftp /system/bin/sdptool add --psm=5257 --channel=20 FTP
+#service time_daemon /system/bin/time_daemon
 #    class late_start
-#    user bluetooth
-#    group bluetooth net_bt_admin
-#    disabled
+#    user root
+#    group root
 #    oneshot
+#    disabled
 
-service map0 /system/bin/sdptool add --channel=16 MAS0
-    class late_start
-    user bluetooth
-    group bluetooth net_bt_admin
-    disabled
-    oneshot
-
-service map1 /system/bin/sdptool add --channel=17 MAS1
-    class late_start
-    user bluetooth
-    group bluetooth net_bt_admin
-    disabled
-    oneshot
+#on property:persist.timed.enable=true
+#    start time_daemon
 
 service ril-daemon /system/bin/rild
     class main
     socket rild stream 660 root radio
     socket rild-debug stream 660 radio system
+    socket rild-cas stream 666  casdrm mmb
     user root
-    group radio cache inet misc audio sdcard_rw qcom_oncrpc qcom_diag log system drmrpc
+    group radio cache inet misc audio log qcom_diag sdcard_r shell sdcard_rw
 
 service secril-daemon /system/bin/sec-ril
     class main
@@ -639,22 +615,55 @@ service profiler_daemon /system/bin/profiler_daemon
     group root
     disabled
 
-service sdcard /system/bin/sdcard /data/media 1023 1023
+# virtual sdcard daemon running as media_rw (1023)
+service sdcard /system/bin/sdcard /data/media /mnt/shell/emulated 1023 1023
     class late_start
-
-service hcidump /system/bin/sh /system/etc/hcidump.sh
-    user bluetooth
-    group bluetooth system net_bt_admin net_admin
-    disabled
     oneshot
+
+on property:ro.fuse_sdcard=true
+    start sdcard
+
+# This will make sure that sdcard service starts as late_start.
+on nonencrypted
+    setprop ro.fuse_sdcard ${persist.fuse_sdcard}
+
+on property:vold.decrypt=trigger_restart_framework
+    setprop ro.fuse_sdcard ${persist.fuse_sdcard}
 
 service macloader /system/bin/macloader
     class main
     oneshot
 
-service thermald /system/bin/thermald
+service ssr_diag /system/bin/ssr_diag
+    class late_start
+    user system
+    group system
+
+# Limit to SoC reset (1) and independent SSR (3)
+on property:persist.sys.ssr.restart_level=1
+    write /sys/module/subsystem_restart/parameters/restart_level 1
+on property:persist.sys.ssr.restart_level=3
+    write /sys/module/subsystem_restart/parameters/restart_level 3
+
+on property:service.bootanim.exit=1
+    #write /sys/module/rmnet_usb/parameters/dump_ctrl_msg 2
+    write /proc/sys/net/ipv6/conf/rmnet_usb0/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet_usb1/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet_usb2/accept_ra 2
+    write /proc/sys/net/ipv6/conf/rmnet_usb3/accept_ra 2
+
+service orientationd /system/bin/orientationd
     class main
-    user root
-    group root
+    user compass
+    group system input
     disabled
 
+service geomagneticd /system/bin/geomagneticd
+    class main
+    user compass
+    group system input
+    disabled
+
+on property:ro.yas.enable=true
+    start orientationd
+    start geomagneticd

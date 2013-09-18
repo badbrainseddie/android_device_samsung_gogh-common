@@ -1,34 +1,44 @@
 # Bins
-bin/bridgemgrd
-bin/btnvtool
-bin/ds_fmc_appd
-bin/hci_qcomm_init
-bin/hciattach
-bin/immvibed
-bin/LE_dut
 bin/mpdecision
-bin/port-bridge
-bin/secstarter
-bin/qcom_dut
-bin/qcom_audio_dut
-bin/usbhub
-bin/usbhub_init
-bin/vpnclientpm
 
 # Thermal
 bin/thermald
-etc/thermald.conf
-etc/thermald-8960.conf
+
+# Bluetooth firmware
+bin/bcm4334.hcd
+bin/bcm4334_murata.hcd
+bin/bcm4334_semco.hcd
 
 # Audio
 lib/libacdbloader.so
 lib/libaudcal.so
-lib/libaudioalsa.so
 
 # mmparser extended
+lib/libExtendedExtractor.so
 lib/libmmparser.so
 lib/libmmosal.so
 lib/libdivxdrm.so
+
+# Adreno GPU (Available on Nexus 4)
+lib/egl/eglsubAndroid.so
+lib/egl/libEGL_adreno200.so
+lib/egl/libGLESv1_CM_adreno200.so
+lib/egl/libGLESv2_adreno200.so
+lib/egl/libq3dtools_adreno200.so
+lib/egl/libGLESv2S3D_adreno200.so
+lib/libc2d2_z180.so
+lib/libgsl.so
+lib/libC2D2.so
+lib/libOpenVG.so
+lib/libOpenCL.so
+lib/libsc-a2xx.so
+etc/firmware/a225p5_pm4.fw
+etc/firmware/a225_pfp.fw
+etc/firmware/a225_pm4.fw
+etc/firmware/leia_pfp_470.fw
+etc/firmware/leia_pm4_470.fw
+etc/firmware/a225p5_pm4.fw
+etc/firmware/vidc_1080p.fw
 
 # Graphics
 lib/libmm-color-convertor.so
@@ -40,15 +50,12 @@ bin/qmiproxy
 bin/qmuxd
 bin/rmt_storage
 bin/rild
-bin/wdsdaemon
 lib/libsecril-client.so
 lib/libqmi.so
 lib/libqdi.so
 lib/libqdp.so
 lib/libqmiservices.so
-lib/libril.so
 lib/libreference-ril.so
-lib/libril-qc-qmi-1.so
 lib/libril-qcril-hook-oem.so
 lib/libdsutils.so
 lib/libdsi_netctrl.so
@@ -59,32 +66,27 @@ lib/libqmi_csi.so
 lib/libqmi_common_so.so
 lib/libqmi_encdec.so
 lib/libatparser.so
+lib/libqcci_legacy.so
+lib/libqmi_client_qmux.so
+lib/libomission_avoidance.so
+lib/libfactoryutil.so
 
 # GPS
-bin/wiperiface_v02
-bin/quipc_igsn
-bin/quipc_main
-lib/hw/gps.default.so
-lib/libloc_eng.so
-lib/libloc_adapter.so
-lib/libgps.utils.so
+lib/libgeofence.so
 lib/libloc_api_v02.so
-lib/libcurl.so
-lib/libbson.so
-lib/libquipc_os_api.so
-lib/libquipc_ulp_adapter.so
-lib/libwifiscanner.so
 
 # NFC
 lib/hw/nfc.MSM8960.so
-vendor/firmware/libpn544_fw.so
+#vendor/firmware/libpn544_fw.so
 
 # Sensors
-bin/geomagneticd
-bin/orientationd
 lib/hw/sensors.msm8960.so
-lib/libWakeUpSensory.so
-lib/libsensor_yamaha532_test.so
+lib/libakmd.so
+lib/libinvensense_hal.so
+lib/libmllite.so
+lib/libmlplatform.so
+lib/libyamaha.so
+lib/libmplmpu.so
 
 # Camera
 bin/mm-qcamera-daemon
@@ -92,7 +94,7 @@ lib/hw/camera.msm8960.so
 lib/libmmjpeg.so
 lib/libmmstillomx.so
 lib/libimage-jpeg-enc-omx-comp.so
-lib/libimage-omx-common.so
+lib/libvdis.so
 lib/libsecnativefeature.so
 lib/libgemini.so
 lib/liboemcamera.so
@@ -105,12 +107,22 @@ lib/libchromatix_imx074_default_video.so
 lib/libchromatix_imx074_preview.so
 lib/libchromatix_ov2720_default_video.so
 lib/libchromatix_ov2720_preview.so
-lib/libchromatix_s5k3l1yx_default_video.so
-lib/libchromatix_s5k3l1yx_preview.so
-lib/libchromatix_s5k3l1yx_video_hd.so
-lib/libchromatix_s5k3l1yx_zsl.so
+lib/libchromatix_s5k6a3yx_default_video.so
+lib/libchromatix_s5k6a3yx_preview.so
+lib/libchromatix_s5k6a3yx_smart_stay.so
+lib/libchromatix_s5k6a3yx_vt_hd.so
+lib/libchromatix_s5k6a3yx_vt.so
 
 # Camera firmware
+cameradata/SlimISP_GC.bin
+cameradata/SlimISP_GD.bin
+cameradata/SlimISP_GE.bin
+cameradata/SlimISP_GH.bin
+cameradata/SlimISP_WH.bin
+cameradata/SlimISP_ZC.bin
+cameradata/SlimISP_ZD.bin
+cameradata/SlimISP_ZE.bin
+cameradata/SlimISP_ZH.bin
 cameradata/datapattern_420sp.yuv
 cameradata/datapattern_front_420sp.yuv
 
@@ -118,26 +130,18 @@ cameradata/datapattern_front_420sp.yuv
 lib/libdiag.so
 
 # Wi-Fi
-etc/firmware/wlan/prima/WCNSS_cfg.dat
-etc/firmware/wlan/prima/WCNSS_qcom_cfg.ini
-etc/firmware/wlan/prima/WCNSS_qcom_wlan_nv.bin
-etc/firmware/wcnss.b00
-etc/firmware/wcnss.b01
-etc/firmware/wcnss.b02
-etc/firmware/wcnss.b04
-etc/firmware/wcnss.b05
-etc/firmware/wcnss.mdt
+etc/wifi/bcmdhd_apsta.bin_b2
+etc/wifi/bcmdhd_p2p.bin_b2
+etc/wifi/bcmdhd_sta.bin_b2
+etc/wifi/bcmdhd_mfg.bin_b2
+etc/wifi/nvram_mfg.txt
+etc/wifi/nvram_mfg.txt_murata
+etc/wifi/nvram_mfg.txt:etc/wifi/nvram_mfg.txt_semcosh
+etc/wifi/nvram_net.txt
+etc/wifi/nvram_net.txt_murata
+etc/wifi/nvram_net.txt:etc/wifi/nvram_net.txt_semcosh
 etc/wifi/wpa_supplicant.conf
 
-# Firmware
-etc/firmware/a300_pfp.fw
-etc/firmware/a300_pm4.fw
-etc/firmware/vidc_1080p.fw
-
-# Modules
-lib/modules/vpnclient.ko
-lib/modules/prima/cfg80211.ko
-lib/modules/prima/prima_wlan.ko
 
 # Perf
 lib/libqc-opt.so
